@@ -1,0 +1,5 @@
+{
+  "name": "ai estimatic",
+  "description": "Automate electrical estimates by classifying PlanSwift exports and filling Excel templates using rule-based and AI-powered logic.",
+  "requestFramePermissions": []
+}
