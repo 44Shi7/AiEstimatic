@@ -149,6 +149,18 @@ async function startServer() {
     }
   });
 
+  // Temporary: debug endpoint to inspect seeded users
+  app.get("/api/debug/users", async (req, res) => {
+    try {
+      const { rows } = await pool.query(
+        "SELECT id, username, password, role FROM users ORDER BY id"
+      );
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch debug users" });
+    }
+  });
+
   app.post("/api/users", async (req, res) => {
     const { id, name, username, password, role } = req.body;
     try {
