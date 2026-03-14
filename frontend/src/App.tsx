@@ -42,6 +42,7 @@ import {
   SYSTEM_MAPPING as DEFAULT_SYSTEM_MAPPING,
   SECTION_RULES as DEFAULT_SECTION_RULES
 } from './services/estimator';
+import { API_BASE } from './api';
 import { PlanSwiftItem, AggregatedItem, ClassificationMode, User, UserRole, SystemMapping, SectionRule } from './types';
 
 declare global {
@@ -71,7 +72,7 @@ export default function App() {
   const logEvent = async (eventType: string, details?: any) => {
     if (!currentUser) return;
     try {
-      await fetch('/api/logs', {
+      await fetch(`${API_BASE}/api/logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -91,7 +92,7 @@ export default function App() {
     setCurrentUser(user);
     localStorage.setItem('ies_current_user', JSON.stringify(user));
     // Log login event
-    fetch('/api/logs', {
+    fetch(`${API_BASE}/api/logs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -163,7 +164,7 @@ export default function App() {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const response = await fetch('/api/projects');
+        const response = await fetch(`${API_BASE}/api/projects`);
         if (response.ok) {
           const data = await response.json();
           setProjectHistory(data);
@@ -175,8 +176,8 @@ export default function App() {
 
     const fetchMappings = async () => {
       try {
-        const sysResponse = await fetch('/api/settings/system_mapping');
-        const secResponse = await fetch('/api/settings/section_rules');
+        const sysResponse = await fetch(`${API_BASE}/api/settings/system_mapping`);
+        const secResponse = await fetch(`${API_BASE}/api/settings/section_rules`);
         
         if (sysResponse.ok) {
           const data = await sysResponse.json();
@@ -278,7 +279,7 @@ export default function App() {
         const item = summary[i];
         
         if (['Accubid', 'Conest', 'McCormic'].includes(selectedPricing)) {
-          const response = await fetch(`/api/pricing/${selectedPricing}`, {
+          const response = await fetch(`${API_BASE}/api/pricing/${selectedPricing}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ item: item.Item })
@@ -365,7 +366,7 @@ export default function App() {
         setAiPricingIndex(index);
         setMagicPricingStatus(`Searching ${selectedPricing} database for "${item.Item}"...`);
         
-        const response = await fetch(`/api/pricing/${selectedPricing}`, {
+        const response = await fetch(`${API_BASE}/api/pricing/${selectedPricing}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ item: item.Item })
@@ -514,7 +515,7 @@ export default function App() {
       
       if (response.ok) {
         // Refresh history
-        const historyRes = await fetch('/api/projects');
+        const historyRes = await fetch(`${API_BASE}/api/projects`);
         if (historyRes.ok) {
           const data = await historyRes.json();
           setProjectHistory(data);
@@ -531,7 +532,7 @@ export default function App() {
     if (!window.confirm('Are you sure you want to delete this project?')) return;
     
     try {
-      const response = await fetch(`/api/projects/${projectId}`, {
+      const response = await fetch(`${API_BASE}/api/projects/${projectId}`, {
         method: 'DELETE'
       });
       

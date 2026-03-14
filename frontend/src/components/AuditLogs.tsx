@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { API_BASE } from '../api';
 import { 
   Activity, 
   Clock, 
@@ -47,8 +48,8 @@ export function AuditLogs() {
   const fetchData = async () => {
     try {
       const [logsRes, statsRes] = await Promise.all([
-        fetch('/api/logs'),
-        fetch('/api/stats')
+        fetch(`${API_BASE}/api/logs`),
+        fetch(`${API_BASE}/api/stats`)
       ]);
       const logsData = await logsRes.json();
       const statsData = await statsRes.json();

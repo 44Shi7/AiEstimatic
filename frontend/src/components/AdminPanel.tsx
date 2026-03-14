@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { UserManagement } from './UserManagement';
 import { AuditLogs } from './AuditLogs';
+import { API_BASE } from '../api';
 import { User, SystemMapping, SectionRule } from '../types';
 import { SYSTEM_MAPPING as DEFAULT_SYSTEM_MAPPING, SECTION_RULES as DEFAULT_SECTION_RULES } from '../services/estimator';
 import { Plus, Trash2, Save, X } from 'lucide-react';
@@ -51,8 +52,8 @@ export function AdminPanel({ currentUser, logEvent }: AdminPanelProps) {
 
   const fetchMappings = async () => {
     try {
-      const sysResponse = await fetch('/api/settings/system_mapping');
-      const secResponse = await fetch('/api/settings/section_rules');
+      const sysResponse = await fetch(`${API_BASE}/api/settings/system_mapping`);
+      const secResponse = await fetch(`${API_BASE}/api/settings/section_rules`);
       
       if (sysResponse.ok) {
         const data = await sysResponse.json();
@@ -81,7 +82,7 @@ export function AdminPanel({ currentUser, logEvent }: AdminPanelProps) {
       const key = type === 'system' ? 'system_mapping' : 'section_rules';
       const value = type === 'system' ? systemMapping : sectionRules;
       
-      const response = await fetch(`/api/settings/${key}`, {
+      const response = await fetch(`${API_BASE}/api/settings/${key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value })
@@ -103,7 +104,7 @@ export function AdminPanel({ currentUser, logEvent }: AdminPanelProps) {
 
   const fetchDbStats = async () => {
     try {
-      const response = await fetch(`/api/admin/db-stats?type=${selectedDb}`);
+      const response = await fetch(`${API_BASE}/api/admin/db-stats?type=${selectedDb}`);
       if (response.ok) {
         const data = await response.json();
         setDbStats(data);
@@ -129,7 +130,7 @@ export function AdminPanel({ currentUser, logEvent }: AdminPanelProps) {
     formData.append('file', file);
 
     try {
-      const response = await fetch(`/api/admin/upload-db?type=${selectedDb}`, {
+      const response = await fetch(`${API_BASE}/api/admin/upload-db?type=${selectedDb}`, {
         method: 'POST',
         body: formData
       });
