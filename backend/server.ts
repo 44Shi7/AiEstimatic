@@ -6,6 +6,11 @@ const dbReady = initDb();
 
 const app = express();
 
+// Health check (no DB wait – for load balancers / monitoring)
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 // Ensure DB is ready before handling any request (for Vercel serverless)
 app.use(async (_req, _res, next) => {
   await dbReady;
