@@ -17,13 +17,14 @@ app.use(async (_req, _res, next) => {
   next();
 });
 
-// CORS: allow frontend (localhost:5173) and Vercel preview/production origins
+// CORS: allow frontend (localhost, vercel.app, aiestimatic.com)
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowed =
     !origin ||
     origin.includes("localhost:5173") ||
-    origin.includes("vercel.app");
+    origin.includes("vercel.app") ||
+    origin.endsWith("aiestimatic.com");
   if (origin && allowed) res.setHeader("Access-Control-Allow-Origin", origin);
   else if (!origin) res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
