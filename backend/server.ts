@@ -49,7 +49,9 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
+// Mount API routes at both `/api/*` (local + proxy) and `/*` (Vercel function routing can strip the `/api` prefix).
 app.use("/api", apiRoutes);
+app.use("/", apiRoutes);
 
 // Local development: start listening (PORT from env, default 3000)
 const PORT = Number(process.env.PORT) || 3000;
