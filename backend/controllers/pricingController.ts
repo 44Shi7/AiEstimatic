@@ -14,9 +14,8 @@ export async function getPricing(req: Request, res: Response): Promise<void> {
     if (bestMatch) {
       res.json(bestMatch);
     } else {
-      res
-        .status(404)
-        .json({ error: `No matching item found in ${type} database` });
+      // No match: return 200 with empty pricing so batch doesn't count as failed
+      res.json({ unitCost: null, labor: null, description: "" });
     }
   } catch (err) {
     if (err instanceof pricingService.DatabaseNotFoundError) {

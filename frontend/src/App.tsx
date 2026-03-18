@@ -246,19 +246,54 @@ export default function App() {
   const handleUpdateItem = (index: number, field: keyof AggregatedItem, value: any) => {
     const newSummary = [...summary];
     if (field === 'Qty' || field === 'unitCost' || field === 'labor') {
-      const val = parseFloat(value);
-      newSummary[index] = { ...newSummary[index], [field]: isNaN(val) ? 0 : val };
+      const raw = typeof value === 'string' ? value.trim() : value;
+      if (raw === '' || raw == null) {
+        newSummary[index] = {
+          ...newSummary[index],
+          [field]: field === 'Qty' ? 0 : null,
+        };
+      } else {
+        const val = parseFloat(String(raw));
+        newSummary[index] = {
+          ...newSummary[index],
+          [field]: Number.isNaN(val) ? (field === 'Qty' ? 0 : null) : val,
+        };
+      }
     } else {
       newSummary[index] = { ...newSummary[index], [field]: value };
     }
     setSummary(newSummary);
   };
 
+  const normalizePricingResponse = (result: any): { unitCost: number | null; labor: number | null } => {
+    const parseNum = (v: any): number | null => {
+      if (v == null) return null;
+      if (typeof v === 'number' && !Number.isNaN(v)) return v;
+      if (typeof v === 'string') {
+        const t = v.trim();
+        if (!t) return null;
+        const n = parseFloat(t.replace(/,/g, ''));
+        return Number.isNaN(n) ? null : n;
+      }
+      return null;
+    };
+
+    const unitCost = parseNum(result?.unitCost);
+    const labor = parseNum(result?.labor);
+
+    // Back-compat: older backend returns { unitCost: 0, labor: 0, description: "" } for no-match.
+    const desc = typeof result?.description === 'string' ? result.description.trim() : '';
+    if (desc === '' && (unitCost == null || unitCost === 0) && (labor == null || labor === 0)) {
+      return { unitCost: null, labor: null };
+    }
+    return { unitCost, labor };
+  };
+
   const handleMagicPricingAll = async () => {
     if (aiPricingIndex !== null) return;
 
     if (selectedPricing === 'Ai') {
-      const apiKey = "AIzaSyB3BrUH1N4zhPH-96zyyHf8z88Icl3qvj0";
+      const apiKey = typeof process !== "undefined" ? process.env.GEMINI_API_KEY : undefined;
       if (!apiKey) {
         setMagicPricingStatus(`Invalid API Key. Please check your Settings or select a key.`);
         if (window.aistudio) {
@@ -287,20 +322,27 @@ export default function App() {
 
           if (response.ok) {
             const result = await response.json();
-            const newSummary = [...summary];
-            newSummary[i] = { 
-              ...newSummary[i], 
-              unitCost: result.unitCost || 0, 
-              labor: result.labor || 0 
-            };
-            setSummary(newSummary);
+            const { unitCost: u, labor: l } = normalizePricingResponse(result);
+            setSummary((prev) => {
+              const next = [...prev];
+              next[i] = { ...next[i], unitCost: u, labor: l };
+              return next;
+            });
             successCount++;
           } else {
+            const errBody = await response.json().catch(() => ({}));
+            const msg = errBody?.error || response.statusText;
+            if (msg.includes("Database for") && msg.includes("not found")) {
+              setMagicPricingStatus(`${selectedPricing} pricing database not found. Upload it in Admin → Database Pricing, then try again.`);
+              setAiPricingIndex(null);
+              setTimeout(() => setMagicPricingStatus(null), 8000);
+              return;
+            }
             failCount++;
           }
         } else if (selectedPricing === 'Ai') {
           // Re-use logic from handleMagicPricing but simplified for batch
-          const apiKey = "AIzaSyB3BrUH1N4zhPH-96zyyHf8z88Icl3qvj0";
+          const apiKey = typeof process !== "undefined" ? process.env.GEMINI_API_KEY : undefined;
           if (!apiKey) throw new Error("API Key missing");
           
           const ai = new GoogleGenAI({ apiKey });
@@ -326,14 +368,12 @@ export default function App() {
           let text = response.text;
           if (text.includes('```json')) text = text.split('```json')[1].split('```')[0].trim();
           const result = JSON.parse(text);
-          
-          const newSummary = [...summary];
-          newSummary[i] = { 
-            ...newSummary[i], 
-            unitCost: result.unitCost || 0, 
-            labor: result.labor || 0 
-          };
-          setSummary(newSummary);
+          const { unitCost: u, labor: l } = normalizePricingResponse(result);
+          setSummary((prev) => {
+            const next = [...prev];
+            next[i] = { ...next[i], unitCost: u, labor: l };
+            return next;
+          });
           successCount++;
         }
         
@@ -373,22 +413,26 @@ export default function App() {
         });
 
         if (!response.ok) {
-          throw new Error(`Item not found in ${selectedPricing} database`);
+          const errBody = await response.json().catch(() => ({}));
+          const msg = errBody?.error || response.statusText;
+          if (msg.includes("Database for") && msg.includes("not found")) {
+            throw new Error(`${selectedPricing} pricing database not found. Upload it in Admin → Database Pricing.`);
+          }
+          throw new Error(msg || `Item not found in ${selectedPricing} database`);
         }
 
         const result = await response.json();
-        const newSummary = [...summary];
-        newSummary[index] = { 
-          ...newSummary[index], 
-          unitCost: result.unitCost || 0, 
-          labor: result.labor || 0 
-        };
-        setSummary(newSummary);
+        const { unitCost: u, labor: l } = normalizePricingResponse(result);
+        setSummary((prev) => {
+          const next = [...prev];
+          next[index] = { ...next[index], unitCost: u, labor: l };
+          return next;
+        });
         setMagicPricingStatus(`Successfully updated pricing from ${selectedPricing} for "${item.Item}"`);
         setTimeout(() => setMagicPricingStatus(null), 3000);
       } catch (err: any) {
         console.error(`${selectedPricing} Pricing Error:`, err);
-        setMagicPricingStatus(`Failed to find "${item.Item}" in ${selectedPricing} database.`);
+        setMagicPricingStatus(err?.message || `Failed to find "${item.Item}" in ${selectedPricing} database.`);
         setTimeout(() => setMagicPricingStatus(null), 5000);
       } finally {
         setAiPricingIndex(null);
@@ -404,7 +448,7 @@ export default function App() {
         
         setMagicPricingStatus(`Searching market rates for "${item.Item}" in ${state}...`);
         
-        const apiKey = "AIzaSyCA6iA4rttNfvZjfewkHFMrECea2IOqUic";
+        const apiKey = typeof process !== "undefined" ? process.env.GEMINI_API_KEY : undefined;
         if (!apiKey) {
           if (window.aistudio) {
             setMagicPricingStatus("API Key required. Opening selection dialog...");
@@ -461,13 +505,12 @@ export default function App() {
         }
 
         const result = JSON.parse(text);
-        const newSummary = [...summary];
-        newSummary[index] = { 
-          ...newSummary[index], 
-          unitCost: result.unitCost || 0, 
-          labor: result.labor || 0 
-        };
-        setSummary(newSummary);
+        const { unitCost: u, labor: l } = normalizePricingResponse(result);
+        setSummary((prev) => {
+          const next = [...prev];
+          next[index] = { ...next[index], unitCost: u, labor: l };
+          return next;
+        });
         setMagicPricingStatus(`Successfully updated pricing for "${item.Item}"`);
         setTimeout(() => setMagicPricingStatus(null), 3000);
       } catch (err: any) {
@@ -1130,7 +1173,7 @@ export default function App() {
                                   <td className="px-4 py-4 text-right">
                                     <input 
                                       type="number"
-                                      value={item.unitCost || 0}
+                                      value={item.unitCost ?? ''}
                                       onChange={(e) => handleUpdateItem(originalIndex, 'unitCost', e.target.value)}
                                       className="w-20 text-sm font-mono font-medium text-right bg-zinc-50 border border-zinc-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-zinc-600"
                                     />
@@ -1139,7 +1182,7 @@ export default function App() {
                                     <div className="flex items-center justify-end gap-2">
                                       <input 
                                         type="number"
-                                        value={item.labor || 0}
+                                        value={item.labor ?? ''}
                                         onChange={(e) => handleUpdateItem(originalIndex, 'labor', e.target.value)}
                                         className="w-20 text-sm font-mono font-medium text-right bg-zinc-50 border border-zinc-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-zinc-600"
                                       />

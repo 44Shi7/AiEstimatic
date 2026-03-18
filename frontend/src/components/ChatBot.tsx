@@ -1,23 +1,23 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  MessageSquare, 
-  Send, 
-  X, 
-  Bot, 
-  User as UserIcon, 
-  Loader2, 
-  BookOpen, 
-  Upload, 
+import React, { useState, useRef, useEffect } from "react";
+import {
+  MessageSquare,
+  Send,
+  X,
+  Bot,
+  User as UserIcon,
+  Loader2,
+  BookOpen,
+  Upload,
   Trash2,
   FileText,
   Maximize2,
-  Minimize2
-} from 'lucide-react';
-import Markdown from 'react-markdown';
+  Minimize2,
+} from "lucide-react";
+import Markdown from "react-markdown";
 import { GoogleGenAI } from "@google/genai";
-import ExcelJS from 'exceljs';
-import * as pdfjs from 'pdfjs-dist';
-import { AggregatedItem, User } from '../types';
+import ExcelJS from "exceljs";
+import * as pdfjs from "pdfjs-dist";
+import { AggregatedItem, User } from "../types";
 
 declare global {
   interface Window {
@@ -32,7 +32,7 @@ declare global {
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 interface Message {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
 }
 
@@ -49,18 +49,18 @@ interface ChatBotProps {
 }
 
 export function ChatBot({ currentUser, estimationData }: ChatBotProps) {
-  const isAllowed = ['ADMIN', 'POWER_USER'].includes(currentUser.role);
+  const isAllowed = ["ADMIN", "POWER_USER"].includes(currentUser.role);
   const [isOpen, setIsOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [manuals, setManuals] = useState<Manual[]>(() => {
-    const saved = localStorage.getItem('ies_chatbot_manuals');
+    const saved = localStorage.getItem("ies_chatbot_manuals");
     return saved ? JSON.parse(saved) : [];
   });
   const [showManuals, setShowManuals] = useState(false);
-  
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -70,7 +70,7 @@ export function ChatBot({ currentUser, estimationData }: ChatBotProps) {
   }, [messages]);
 
   useEffect(() => {
-    localStorage.setItem('ies_chatbot_manuals', JSON.stringify(manuals));
+    localStorage.setItem("ies_chatbot_manuals", JSON.stringify(manuals));
   }, [manuals]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,40 +79,44 @@ export function ChatBot({ currentUser, estimationData }: ChatBotProps) {
 
     for (const file of Array.from(files)) {
       try {
-        let content = '';
-        const fileExtension = file.name.split('.').pop()?.toLowerCase();
+        let content = "";
+        const fileExtension = file.name.split(".").pop()?.toLowerCase();
 
-        if (fileExtension === 'txt') {
+        if (fileExtension === "txt") {
           content = await new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = (event) => resolve(event.target?.result as string);
             reader.readAsText(file);
           });
-        } else if (fileExtension === 'pdf') {
+        } else if (fileExtension === "pdf") {
           const arrayBuffer = await file.arrayBuffer();
           const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-          let fullText = '';
+          let fullText = "";
           for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const textContent = await page.getTextContent();
-            const pageText = textContent.items.map((item: any) => item.str).join(' ');
-            fullText += pageText + '\n';
+            const pageText = textContent.items
+              .map((item: any) => item.str)
+              .join(" ");
+            fullText += pageText + "\n";
           }
           content = fullText;
-        } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+        } else if (fileExtension === "xlsx" || fileExtension === "xls") {
           const arrayBuffer = await file.arrayBuffer();
           const workbook = new ExcelJS.Workbook();
           await workbook.xlsx.load(arrayBuffer);
-          let fullText = '';
+          let fullText = "";
           workbook.eachSheet((sheet) => {
             fullText += `Sheet: ${sheet.name}\n`;
             sheet.eachRow((row) => {
-              const rowValues = Array.isArray(row.values) 
-                ? row.values.filter(v => v !== undefined && v !== null).join(' | ')
-                : '';
-              fullText += rowValues + '\n';
+              const rowValues = Array.isArray(row.values)
+                ? row.values
+                    .filter((v) => v !== undefined && v !== null)
+                    .join(" | ")
+                : "";
+              fullText += rowValues + "\n";
             });
-            fullText += '\n';
+            fullText += "\n";
           });
           content = fullText;
         }
@@ -122,41 +126,57 @@ export function ChatBot({ currentUser, estimationData }: ChatBotProps) {
             id: Math.random().toString(36).substr(2, 9),
             name: file.name,
             content: content,
-            date: new Date().toISOString()
+            date: new Date().toISOString(),
           };
-          setManuals(prev => [...prev, newManual]);
+          setManuals((prev) => [...prev, newManual]);
         }
       } catch (err) {
         console.error(`Error processing file ${file.name}:`, err);
-        alert(`Failed to process ${file.name}. Please ensure it's a valid file.`);
+        alert(
+          `Failed to process ${file.name}. Please ensure it's a valid file.`,
+        );
       }
     }
   };
 
   const deleteManual = (id: string) => {
-    setManuals(prev => prev.filter(m => m.id !== id));
+    setManuals((prev) => prev.filter((m) => m.id !== id));
   };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
     const userMessage = input.trim();
-    setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setInput("");
+    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
-    
-    const apiKey = "AIzaSyAwJy7xWY62F41o-JBj0M2lGNWfwRpEoYk";
+
+    const apiKey = typeof process !== "undefined" ? process.env.GEMINI_API_KEY : undefined;
     if (!apiKey) {
       if (window.aistudio) {
-        setMessages(prev => [...prev, { role: 'assistant', content: "Error: Gemini API key is not configured. Opening selection dialog..." }]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              "Error: Gemini API key is not configured. Opening selection dialog...",
+          },
+        ]);
         await window.aistudio.openSelectKey();
       } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: "Error: Gemini API key is not configured. Please check your environment settings." }]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              "Error: Gemini API key is not configured. Please check your environment settings.",
+          },
+        ]);
       }
       setIsLoading(false);
       return;
     }
-    
+
     // Construct context
     const context = `
       You are an AI assistant for ai estimatic.
@@ -164,10 +184,10 @@ export function ChatBot({ currentUser, estimationData }: ChatBotProps) {
       
       Current Estimation Data (Summary):
       ${JSON.stringify(estimationData.slice(0, 20), null, 2)}
-      ${estimationData.length > 20 ? `... and ${estimationData.length - 20} more items.` : ''}
+      ${estimationData.length > 20 ? `... and ${estimationData.length - 20} more items.` : ""}
       
       Knowledge Base (User Manuals):
-      ${manuals.map(m => `Manual: ${m.name}\nContent: ${m.content.substring(0, 1000)}...`).join('\n\n')}
+      ${manuals.map((m) => `Manual: ${m.name}\nContent: ${m.content.substring(0, 1000)}...`).join("\n\n")}
       
       Guidelines:
       - Help users with their estimation data.
@@ -176,44 +196,62 @@ export function ChatBot({ currentUser, estimationData }: ChatBotProps) {
       - If data is missing, ask for clarification.
     `;
 
-    const generateWithRetry = async (retries = 2, delay = 1000, useSearch = true) => {
+    const generateWithRetry = async (
+      retries = 2,
+      delay = 1000,
+      useSearch = true,
+    ) => {
       if (!apiKey) {
         console.error("Gemini API Key is missing");
-        throw new Error("Gemini API Key is missing. Please ensure it is configured in the AI Studio settings.");
+        throw new Error(
+          "Gemini API Key is missing. Please ensure it is configured in the AI Studio settings.",
+        );
       }
       try {
-        console.log(`Sending request to Gemini (retries left: ${retries}, search: ${useSearch})...`);
+        console.log(
+          `Sending request to Gemini (retries left: ${retries}, search: ${useSearch})...`,
+        );
         const ai = new GoogleGenAI({ apiKey });
-        
+
         // Limit history to last 10 messages to avoid huge payloads
         const recentMessages = messages.slice(-10);
-        
+
         return await ai.models.generateContent({
           model: "gemini-3-flash-preview",
           contents: [
-            { role: 'user', parts: [{ text: context }] },
-            ...recentMessages.map(m => ({
-              role: m.role === 'user' ? 'user' : 'model',
-              parts: [{ text: m.content }]
+            { role: "user", parts: [{ text: context }] },
+            ...recentMessages.map((m) => ({
+              role: m.role === "user" ? "user" : "model",
+              parts: [{ text: m.content }],
             })),
-            { role: 'user', parts: [{ text: userMessage }] }
+            { role: "user", parts: [{ text: userMessage }] },
           ],
           config: {
-            ...(useSearch ? { tools: [{ googleSearch: {} }] } : {})
-          }
+            ...(useSearch ? { tools: [{ googleSearch: {} }] } : {}),
+          },
         });
       } catch (err: any) {
         console.error(`Gemini request failed:`, err);
-        
+
         // Fallback if search is restricted
-        if (useSearch && (err.message?.includes("API key not valid") || err.message?.includes("400") || err.message?.includes("permission"))) {
+        if (
+          useSearch &&
+          (err.message?.includes("API key not valid") ||
+            err.message?.includes("400") ||
+            err.message?.includes("permission"))
+        ) {
           console.warn("Search restricted, retrying without search...");
           return generateWithRetry(retries, delay, false);
         }
 
-        if (retries > 0 && (err.message?.includes("503") || err.message?.includes("high demand") || err.message?.includes("UNAVAILABLE"))) {
+        if (
+          retries > 0 &&
+          (err.message?.includes("503") ||
+            err.message?.includes("high demand") ||
+            err.message?.includes("UNAVAILABLE"))
+        ) {
           console.log(`Retrying in ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, delay));
           return generateWithRetry(retries - 1, delay * 2, useSearch);
         }
         throw err;
@@ -223,19 +261,30 @@ export function ChatBot({ currentUser, estimationData }: ChatBotProps) {
     try {
       const response = await generateWithRetry();
       console.log("Gemini response received:", response);
-      const assistantMessage = response.text || "I'm sorry, I couldn't process that request.";
-      setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
+      const assistantMessage =
+        response.text || "I'm sorry, I couldn't process that request.";
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: assistantMessage },
+      ]);
     } catch (err: any) {
-      console.error('ChatBot Error:', err);
+      console.error("ChatBot Error:", err);
       let errorMessage = err.message || "Failed to connect to AI service.";
-      
-      if (errorMessage.includes("503") || errorMessage.includes("high demand")) {
-        errorMessage = "The AI service is currently experiencing high demand and is temporarily unavailable. Please try again in a few moments.";
+
+      if (
+        errorMessage.includes("503") ||
+        errorMessage.includes("high demand")
+      ) {
+        errorMessage =
+          "The AI service is currently experiencing high demand and is temporarily unavailable. Please try again in a few moments.";
       } else {
         errorMessage = `Error: ${errorMessage}. Please check your connection or API key in the settings.`;
       }
-      
-      setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
+
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: errorMessage },
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -258,7 +307,9 @@ export function ChatBot({ currentUser, estimationData }: ChatBotProps) {
   }
 
   return (
-    <div className={`fixed bottom-6 right-6 bg-white border border-zinc-200 rounded-2xl shadow-2xl flex flex-col z-50 transition-all duration-300 ${isMaximized ? 'w-[80vw] h-[80vh]' : 'w-96 h-[500px]'}`}>
+    <div
+      className={`fixed bottom-6 right-6 bg-white border border-zinc-200 rounded-2xl shadow-2xl flex flex-col z-50 transition-all duration-300 ${isMaximized ? "w-[80vw] h-[80vh]" : "w-96 h-[500px]"}`}
+    >
       {/* Header */}
       <div className="p-4 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50 rounded-t-2xl">
         <div className="flex items-center gap-2">
@@ -266,28 +317,36 @@ export function ChatBot({ currentUser, estimationData }: ChatBotProps) {
             <Bot className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-sm text-zinc-900">estimatic Assistant</h3>
+            <h3 className="font-bold text-sm text-zinc-900">
+              estimatic Assistant
+            </h3>
             <div className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-              <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider">Online</span>
+              <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider">
+                Online
+              </span>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <button 
+          <button
             onClick={() => setShowManuals(!showManuals)}
-            className={`p-2 rounded-lg transition-colors ${showManuals ? 'bg-zinc-200 text-zinc-900' : 'text-zinc-400 hover:bg-zinc-100'}`}
+            className={`p-2 rounded-lg transition-colors ${showManuals ? "bg-zinc-200 text-zinc-900" : "text-zinc-400 hover:bg-zinc-100"}`}
             title="Knowledge Base"
           >
             <BookOpen className="w-4 h-4" />
           </button>
-          <button 
+          <button
             onClick={() => setIsMaximized(!isMaximized)}
             className="p-2 text-zinc-400 hover:bg-zinc-100 rounded-lg transition-colors"
           >
-            {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            {isMaximized ? (
+              <Minimize2 className="w-4 h-4" />
+            ) : (
+              <Maximize2 className="w-4 h-4" />
+            )}
           </button>
-          <button 
+          <button
             onClick={() => setIsOpen(false)}
             className="p-2 text-zinc-400 hover:bg-zinc-100 rounded-lg transition-colors"
           >
@@ -298,8 +357,10 @@ export function ChatBot({ currentUser, estimationData }: ChatBotProps) {
 
       <div className="flex-1 flex overflow-hidden relative">
         {/* Chat Area */}
-        <div className={`flex-1 flex flex-col transition-all duration-300 ${showManuals ? 'opacity-50 pointer-events-none blur-[1px]' : ''}`}>
-          <div 
+        <div
+          className={`flex-1 flex flex-col transition-all duration-300 ${showManuals ? "opacity-50 pointer-events-none blur-[1px]" : ""}`}
+        >
+          <div
             ref={scrollRef}
             className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth"
           >
@@ -308,17 +369,34 @@ export function ChatBot({ currentUser, estimationData }: ChatBotProps) {
                 <div className="w-12 h-12 bg-zinc-50 rounded-2xl flex items-center justify-center mb-4">
                   <Bot className="w-6 h-6 text-zinc-400" />
                 </div>
-                <h4 className="font-bold text-zinc-900 mb-1">How can I help you?</h4>
-                <p className="text-xs text-zinc-500">Ask me about your estimation sheet or software manuals.</p>
+                <h4 className="font-bold text-zinc-900 mb-1">
+                  How can I help you?
+                </h4>
+                <p className="text-xs text-zinc-500">
+                  Ask me about your estimation sheet or software manuals.
+                </p>
               </div>
             )}
             {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] flex gap-3 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.role === 'user' ? 'bg-zinc-100 text-zinc-600' : 'bg-zinc-900 text-white'}`}>
-                    {m.role === 'user' ? <UserIcon className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+              <div
+                key={i}
+                className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[85%] flex gap-3 ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+                >
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.role === "user" ? "bg-zinc-100 text-zinc-600" : "bg-zinc-900 text-white"}`}
+                  >
+                    {m.role === "user" ? (
+                      <UserIcon className="w-4 h-4" />
+                    ) : (
+                      <Bot className="w-4 h-4" />
+                    )}
                   </div>
-                  <div className={`p-3 rounded-2xl text-sm ${m.role === 'user' ? 'bg-zinc-900 text-white rounded-tr-none' : 'bg-zinc-100 text-zinc-800 rounded-tl-none'}`}>
+                  <div
+                    className={`p-3 rounded-2xl text-sm ${m.role === "user" ? "bg-zinc-900 text-white rounded-tr-none" : "bg-zinc-100 text-zinc-800 rounded-tl-none"}`}
+                  >
                     <div className="markdown-body">
                       <Markdown>{m.content}</Markdown>
                     </div>
@@ -334,7 +412,9 @@ export function ChatBot({ currentUser, estimationData }: ChatBotProps) {
                   </div>
                   <div className="bg-zinc-100 p-3 rounded-2xl rounded-tl-none flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />
-                    <span className="text-xs text-zinc-500 font-medium">Thinking...</span>
+                    <span className="text-xs text-zinc-500 font-medium">
+                      Thinking...
+                    </span>
                   </div>
                 </div>
               </div>
@@ -349,7 +429,7 @@ export function ChatBot({ currentUser, estimationData }: ChatBotProps) {
                 placeholder="Type your message..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 className="w-full pl-4 pr-12 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-900 transition-all text-sm"
               />
               <button
@@ -371,7 +451,7 @@ export function ChatBot({ currentUser, estimationData }: ChatBotProps) {
                 <BookOpen className="w-4 h-4" />
                 Knowledge Base
               </h4>
-              <button 
+              <button
                 onClick={() => setShowManuals(false)}
                 className="p-1 text-zinc-400 hover:bg-zinc-100 rounded-lg"
               >
@@ -383,21 +463,30 @@ export function ChatBot({ currentUser, estimationData }: ChatBotProps) {
               {manuals.length === 0 && (
                 <div className="text-center py-8">
                   <FileText className="w-8 h-8 text-zinc-200 mx-auto mb-2" />
-                  <p className="text-xs text-zinc-400">No manuals uploaded yet.</p>
+                  <p className="text-xs text-zinc-400">
+                    No manuals uploaded yet.
+                  </p>
                 </div>
               )}
-              {manuals.map(manual => (
-                <div key={manual.id} className="p-3 bg-zinc-50 border border-zinc-100 rounded-xl flex items-center justify-between group">
+              {manuals.map((manual) => (
+                <div
+                  key={manual.id}
+                  className="p-3 bg-zinc-50 border border-zinc-100 rounded-xl flex items-center justify-between group"
+                >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-8 h-8 bg-white border border-zinc-200 rounded-lg flex items-center justify-center shrink-0">
                       <FileText className="w-4 h-4 text-zinc-400" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-zinc-900 truncate">{manual.name}</p>
-                      <p className="text-[10px] text-zinc-400">{new Date(manual.date).toLocaleDateString()}</p>
+                      <p className="text-xs font-bold text-zinc-900 truncate">
+                        {manual.name}
+                      </p>
+                      <p className="text-[10px] text-zinc-400">
+                        {new Date(manual.date).toLocaleDateString()}
+                      </p>
                     </div>
                   </div>
-                  <button 
+                  <button
                     onClick={() => deleteManual(manual.id)}
                     className="p-2 text-zinc-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                   >
@@ -410,12 +499,16 @@ export function ChatBot({ currentUser, estimationData }: ChatBotProps) {
             <div className="mt-4">
               <label className="w-full flex flex-col items-center justify-center px-4 py-6 bg-zinc-50 border-2 border-dashed border-zinc-200 rounded-2xl hover:bg-zinc-100 hover:border-zinc-300 transition-all cursor-pointer">
                 <Upload className="w-6 h-6 text-zinc-400 mb-2" />
-                <span className="text-xs font-bold text-zinc-900">Upload Manuals</span>
-                <span className="text-[10px] text-zinc-400 mt-1">Supports .txt, .pdf, .xlsx files</span>
-                <input 
-                  type="file" 
-                  className="hidden" 
-                  multiple 
+                <span className="text-xs font-bold text-zinc-900">
+                  Upload Manuals
+                </span>
+                <span className="text-[10px] text-zinc-400 mt-1">
+                  Supports .txt, .pdf, .xlsx files
+                </span>
+                <input
+                  type="file"
+                  className="hidden"
+                  multiple
                   accept=".txt,.pdf,.xlsx,.xls"
                   onChange={handleFileUpload}
                 />

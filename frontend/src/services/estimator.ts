@@ -285,8 +285,8 @@ export function aggregateItems(
         Qty: data.qty,
         OriginalQty: data.qty,
         Unit: data.unit,
-        unitCost: 0,
-        labor: 0
+        unitCost: null,
+        labor: null
       });
     });
   });
@@ -420,13 +420,13 @@ export async function fillTemplate(
 
         // UNIT COST (Column G)
         const unitCostCell = sheet.getCell(row, 7);
-        unitCostCell.value = item.unitCost || 0;
+        unitCostCell.value = item.unitCost == null ? null : item.unitCost;
         unitCostCell.font = { bold: false };
         unitCostCell.alignment = { horizontal: 'right' };
 
         // LABOR (Column K)
         const laborCell = sheet.getCell(row, 11);
-        laborCell.value = item.labor || 0;
+        laborCell.value = item.labor == null ? null : item.labor;
         laborCell.font = { bold: false };
         laborCell.alignment = { horizontal: 'right' };
         

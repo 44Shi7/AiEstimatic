@@ -2,8 +2,8 @@ export interface PlanSwiftItem {
   Item: string;
   Qty: number;
   System?: string;
-  unitCost?: number;
-  labor?: number;
+  unitCost?: number | null;
+  labor?: number | null;
 }
 
 export interface AggregatedItem {
@@ -13,8 +13,8 @@ export interface AggregatedItem {
   Qty: number;
   OriginalQty: number;
   Unit: string;
-  unitCost?: number;
-  labor?: number;
+  unitCost?: number | null;
+  labor?: number | null;
 }
 
 export type ClassificationMode = 'RULE_BASED' | 'AI_POWERED';
