@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from "url";
 
 const PRICEDB_DIR = "pricedb";
 
@@ -18,9 +19,16 @@ export interface DbStatsResult {
 
 export function getDbStats(type: string): DbStatsResult {
   const filename = getFilenameForType(type);
-  const filePath = path.join(process.cwd(), PRICEDB_DIR, filename);
+  const serviceDir = path.dirname(fileURLToPath(import.meta.url));
+  const candidatePaths = [
+    path.join(process.cwd(), PRICEDB_DIR, filename),
+    path.join(serviceDir, "..", PRICEDB_DIR, filename),
+    path.join("/var/task", PRICEDB_DIR, filename),
+  ];
+
+  const filePath = candidatePaths.find((candidate) => fs.existsSync(candidate));
   try {
-    if (fs.existsSync(filePath)) {
+    if (filePath) {
       const stats = fs.statSync(filePath);
       return {
         exists: true,

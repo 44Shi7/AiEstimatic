@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs";
 import ExcelJS from "exceljs";
+import { fileURLToPath } from "url";
 
 export interface PricingMatch {
   unitCost: number | null;
@@ -111,14 +112,29 @@ function tokenize(text: string): string[] {
   return (text.toLowerCase().match(/[a-z0-9]+/g) || []).filter((t) => t.length > 1);
 }
 
+function getPricingFilePath(filename: string): string | null {
+  const serviceDir = path.dirname(fileURLToPath(import.meta.url));
+  const candidateDirs = [
+    path.join(process.cwd(), "pricedb"),
+    path.join(serviceDir, "..", "pricedb"),
+    "/var/task/pricedb",
+  ];
+
+  for (const dir of candidateDirs) {
+    const candidate = path.join(dir, filename);
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
 export async function findPricing(
   type: string,
   item: string
 ): Promise<PricingMatch | null> {
   const filename = getFilenameForType(type);
-  const filePath = path.join(process.cwd(), "pricedb", filename);
+  const filePath = getPricingFilePath(filename);
 
-  if (!fs.existsSync(filePath)) {
+  if (!filePath) {
     throw new DatabaseNotFoundError(type);
   }
 
