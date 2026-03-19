@@ -30,7 +30,7 @@ const allowedOrigins = [
 function isOriginAllowed(origin: string | undefined): boolean {
   if (!origin) return true;
   return allowedOrigins.some((o) =>
-    typeof o === "string" ? o === origin : o.test(origin)
+    typeof o === "string" ? o === origin : o.test(origin),
   );
 }
 app.use((req, res, next) => {
@@ -49,9 +49,7 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
-// Mount API routes at both `/api/*` (local + proxy) and `/*` (Vercel function routing can strip the `/api` prefix).
 app.use("/api", apiRoutes);
-app.use("/", apiRoutes);
 
 // Local development: start listening (PORT from env, default 3000)
 const PORT = Number(process.env.PORT) || 3000;
@@ -63,7 +61,7 @@ if (process.env.VERCEL !== "1") {
     server.on("error", (err: NodeJS.ErrnoException) => {
       if (err.code === "EADDRINUSE") {
         console.error(
-          `Port ${PORT} is already in use. Stop the other process (e.g. \`lsof -ti :${PORT} | xargs kill\`) or set PORT to another number.`
+          `Port ${PORT} is already in use. Stop the other process (e.g. \`lsof -ti :${PORT} | xargs kill\`) or set PORT to another number.`,
         );
         process.exit(1);
       }
