@@ -2,7 +2,11 @@ import express from "express";
 import { initDb } from "./config/database.js";
 import apiRoutes from "./routes/index.js";
 
-const dbReady = initDb();
+type DbInitState = { ready: true } | { ready: false; error: unknown };
+
+const dbReady: Promise<DbInitState> = initDb()
+  .then(() => ({ ready: true as const }))
+  .catch((error) => ({ ready: false as const, error }));
 
 const app = express();
 
@@ -52,12 +56,9 @@ app.get("/health", (_req, res) => {
 
 // Ensure DB is ready before handling any request (for Vercel serverless)
 app.use(async (_req, _res, next) => {
-  try {
-    await dbReady;
-    next();
-  } catch (error) {
-    next(error);
-  }
+  const dbState = await dbReady;
+  if (!dbState.ready) return next(dbState.error);
+  next();
 });
 
 app.use(express.json());
@@ -83,7 +84,10 @@ app.use(
 // Local development: start listening (PORT from env, default 3000)
 const PORT = Number(process.env.PORT) || 3000;
 if (process.env.VERCEL !== "1") {
-  dbReady.then(() => {
+  dbReady.then((dbState) => {
+    if (!dbState.ready) {
+      console.error("Database init failed. API will return 503 for DB routes.");
+    }
     const server = app.listen(PORT, "0.0.0.0", () => {
       console.log(`API server running on http://localhost:${PORT}`);
     });

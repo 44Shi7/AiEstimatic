@@ -2,5 +2,11 @@
   "version": 2,
   "env": {
     "NODE_ENV": "production"
-  }
+  },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/[...path].ts"
+    }
+  ]
 }
