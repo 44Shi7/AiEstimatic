@@ -14,6 +14,7 @@ const allowedOrigins: Array<string | RegExp> = [
   "https://localhost:5173",
   "https://localhost:3000",
   "https://ai-estimatic.vercel.app",
+  "https://aiestimatic.com",
   /\.vercel\.app$/,
   /^https?:\/\/aiestimatic\.com$/,
   /^https?:\/\/www\.aiestimatic\.com$/,
