@@ -6,26 +6,20 @@ const dbReady = initDb();
 
 const app = express();
 
-// Health check (no DB wait – for load balancers / monitoring)
-app.get("/health", (_req, res) => {
-  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
-});
-
-// Ensure DB is ready before handling any request (for Vercel serverless)
-app.use(async (_req, _res, next) => {
-  await dbReady;
-  next();
-});
-
-// CORS: allow localhost:5173, localhost:3000, Vercel (*.vercel.app), and aiestimatic.com
-const allowedOrigins = [
+// CORS must run before DB middleware so preflight OPTIONS always succeeds.
+const allowedOrigins: Array<string | RegExp> = [
   "http://localhost:5173",
   "http://localhost:3000",
   "https://localhost:5173",
   "https://localhost:3000",
+  "https://ai-estimatic.vercel.app",
+  "https://www.aiestimatic.com",
+  "https://aiestimatic.com",
   /\.vercel\.app$/,
-  /^https?:\/\/aiestimatic\.com$/,
-  /^https?:\/\/www\.aiestimatic\.com$/,
+  /^https?:\/\/aiestimatic\.com(?::\d+)?$/,
+  /^https?:\/\/www\.aiestimatic\.com(?::\d+)?$/,
+  /^https?:\/\/ai-estimatic\.com(?::\d+)?$/,
+  /^https?:\/\/www\.ai-estimatic\.com(?::\d+)?$/,
 ];
 function isOriginAllowed(origin: string | undefined): boolean {
   if (!origin) return true;
@@ -35,21 +29,56 @@ function isOriginAllowed(origin: string | undefined): boolean {
 }
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && isOriginAllowed(origin))
+  if (origin && isOriginAllowed(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
-  else if (!origin)
-    res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
+    res.setHeader("Vary", "Origin");
+  }
   res.setHeader(
     "Access-Control-Allow-Methods",
     "GET, POST, PUT, PATCH, DELETE, OPTIONS",
   );
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With",
+  );
   if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
 });
 
+// Health check (no DB wait – for load balancers / monitoring)
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Ensure DB is ready before handling any request (for Vercel serverless)
+app.use(async (_req, _res, next) => {
+  try {
+    await dbReady;
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.use(express.json());
 app.use("/api", apiRoutes);
+
+app.use((_req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
+
+app.use(
+  (
+    err: unknown,
+    _req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction,
+  ) => {
+    console.error(err);
+    if (res.headersSent) return;
+    res.status(503).json({ error: "Service unavailable" });
+  },
+);
 
 // Local development: start listening (PORT from env, default 3000)
 const PORT = Number(process.env.PORT) || 3000;
