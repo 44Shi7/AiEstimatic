@@ -14,10 +14,13 @@ const allowedOrigins: Array<string | RegExp> = [
   "https://localhost:5173",
   "https://localhost:3000",
   "https://ai-estimatic.vercel.app",
+  "https://www.aiestimatic.com",
   "https://aiestimatic.com",
   /\.vercel\.app$/,
-  /^https?:\/\/aiestimatic\.com$/,
-  /^https?:\/\/www\.aiestimatic\.com$/,
+  /^https?:\/\/aiestimatic\.com(?::\d+)?$/,
+  /^https?:\/\/www\.aiestimatic\.com(?::\d+)?$/,
+  /^https?:\/\/ai-estimatic\.com(?::\d+)?$/,
+  /^https?:\/\/www\.ai-estimatic\.com(?::\d+)?$/,
 ];
 function isOriginAllowed(origin: string | undefined): boolean {
   if (!origin) return true;
@@ -74,6 +77,10 @@ app.use(
     res.status(503).json({ error: "Service unavailable" });
   },
 );
+
+app.use((_req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
 
 // Local development: start listening (PORT from env, default 3000)
 const PORT = Number(process.env.PORT) || 3000;
